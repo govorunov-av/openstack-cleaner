@@ -5,6 +5,7 @@ INSECURE=--insecure
 DOMAIN='--domain Domain1'
 
 source $vars
+> delete_func_file.tmp
 
 security_delete() {
 id=$1
@@ -202,6 +203,7 @@ if [ ! -f "$script" ]; then
     exit 1
 fi
 
+
 grep '^openstack.*create' "$script" > ./uninstall_script_tmp_file.tmp
 tac ./uninstall_script_tmp_file.tmp | \
 while IFS= read -r line; do
@@ -221,12 +223,25 @@ while IFS= read -r line; do
     type=$(echo "$result" | awk '{print $2}')
     fi
     name=$(echo "$result" | awk '{print $NF}')
-    func="${type}_delete $name $add_var1"
-    eval "$func"
+    func="${type}_delete $name"
+    echo "$func" >> delete_func_file.tmp
     fi
 done
-if [[ -f ./func_tmp_file.tmp ]]; then
-	bash ./func_tmp_file.tmp
-	rm -rf ./func_tmp_file.tmp
+echo "Будут выполненно следующее:"
+cat delete_func_file.tmp
+read -p $'Выполнить удаление? (y/N): ' confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "Удаление отменено."
+    rm -f ./delete_func_file.tmp
+    exit 0
 fi
-rm -rf ./uninstall_script_tmp_file.tmp
+cat ./delete_func_file.tmp | \
+while IFS= read -r line; do
+    eval $line
+done
+if [[ -f ./func_tmp_file.tmp ]]; then
+    bash ./func_tmp_file.tmp
+    rm -f ./func_tmp_file.tmp
+fi
+rm -f ./delete_func_file.tmp
+rm -f ./uninstall_script_tmp_file.tmp
